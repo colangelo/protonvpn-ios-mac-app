@@ -4,7 +4,7 @@
 
 ## design
 
-- [The liveness ladder — patches B and C as one in-app supervisor (restart, then re-select excluding the dead server)](2026-09-11-liveness-ladder-design.md) — Design approved by ac on 2026-09-11 for #3 (patch B) and #4 (patch C): a TunnelLivenessSupervisor in LegacyCommon that notices the local agent stuck unreachable while NE says Connected, restarts the same connection once, then re-runs the saved request excluding the dead logical server (30-min avoid list, at most two re-selections, then gives up). Grounded in the 2026-09-10 outage (four fresh extensions, all dead on 146.70.182.18, 64 min) and in the code: serverUnreachable is inert on macOS today and 'fastest' is deterministic.
+- [The liveness ladder — patches B and C as one in-app supervisor (restart, then re-select excluding the dead server)](2026-09-11-liveness-ladder-design.md) — Design approved by ac on 2026-09-11 for #3 (patch B) and #4 (patch C): a TunnelLivenessSupervisor in LegacyCommon that notices the local agent stuck unreachable while NE says Connected, restarts the same connection once, then re-runs the saved request excluding the dead server's node (30-min avoid list, at most two re-selections, then gives up). Grounded in the 2026-09-10 outage (four fresh extensions, all dead on 146.70.182.18, 64 min) and in the code: serverUnreachable is inert on macOS today and 'fastest' is deterministic.
 
 ## learning
 

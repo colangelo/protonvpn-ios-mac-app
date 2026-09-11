@@ -1,7 +1,7 @@
 ---
 type: design
 title: "The liveness ladder — patches B and C as one in-app supervisor (restart, then re-select excluding the dead server)"
-description: "Design approved by ac on 2026-09-11 for #3 (patch B) and #4 (patch C): a TunnelLivenessSupervisor in LegacyCommon that notices the local agent stuck unreachable while NE says Connected, restarts the same connection once, then re-runs the saved request excluding the dead logical server (30-min avoid list, at most two re-selections, then gives up). Grounded in the 2026-09-10 outage (four fresh extensions, all dead on 146.70.182.18, 64 min) and in the code: serverUnreachable is inert on macOS today and 'fastest' is deterministic."
+description: "Design approved by ac on 2026-09-11 for #3 (patch B) and #4 (patch C): a TunnelLivenessSupervisor in LegacyCommon that notices the local agent stuck unreachable while NE says Connected, restarts the same connection once, then re-runs the saved request excluding the dead server's node (30-min avoid list, at most two re-selections, then gives up). Grounded in the 2026-09-10 outage (four fresh extensions, all dead on 146.70.182.18, 64 min) and in the code: serverUnreachable is inert on macOS today and 'fastest' is deterministic."
 tags: [protonvpn, fork, patch-b, patch-c, liveness, server-selection, design]
 timestamp: 2026-09-11
 ---
@@ -50,7 +50,7 @@ A state machine, one per app process, active only while NE reports `.connected`.
   that); a user Disconnect in progress.
 - **Rung 1 — patch B:** full restart of the same connection: `disconnect()`, then
   `connect(with:)` the saved request. It gets 60 s to bring the local agent to `.connected`.
-- **Rung 2 — patch C:** still dead → put the logical server on the avoid list → connect
+- **Rung 2 — patch C:** still dead → put the server's node on the avoid list → connect
   with the saved request re-run **excluding** it (§ 2). 60 s again.
 - **Cap:** one more re-selection excluding both, then **stop and log "giving up"** until
   the next connect or wake. No flapping.
@@ -69,12 +69,18 @@ feeds #2 / #3.
 
 ## 2. Re-selection and the avoid list
 
-- **Unit of exclusion: the logical server** (e.g. IT#44), not the one endpoint IP.
+- **Unit of exclusion: the node** — `Logical.domain` / `ServerModel.domain`, e.g.
+  `node-it-09.protonvpn.net`. *Amended while implementing:* the section first said "the
+  logical server", but several logical servers share one node and one IP — the fork's own
+  log has `Server selected: IT#96 (node-it-09.protonvpn.net)` → `Connected to: 195.86.6.249`,
+  and on 2026-09-10 Quick Connect picked `IT#105 (node-it-09.protonvpn.net)` on the same
+  `195.86.6.249`. Excluding only the logical id could re-select a sibling on the same dead
+  node; excluding the node covers the logical server too.
 - **Mechanism:** `VpnServerSelector.selectServer(connectionRequest:…, excluding: Set<String> = [])`
-  (logical IDs). Empty set → today's single `repository.getFirstServer`. Non-empty → the
+  (node domains). Empty set → today's single `repository.getFirstServer`. Non-empty → the
   same filters and order through `repository.getServers(filteredBy:orderedBy:)`
-  (`Persistence/Repository.swift:89`), first candidate not excluded. No change to the
-  Persistence package.
+  (`Persistence/Repository.swift:89`), first candidate whose node is not excluded. No
+  change to the Persistence package.
 - **(ac) Same intent, minus the dead server.** Order of attempts:
   1. the saved request unchanged — its filters, order, server type (Secure Core / P2P /
      Tor) and protocol — excluding the dead server;
@@ -83,9 +89,10 @@ feeds #2 / #3.
   3. if nothing matches, Quick Connect, still excluding.
   - **A `.gateway` request never widens** outside its gateway; it stops and logs, because
     leaving a dedicated gateway changes the security posture.
-- **Avoid list:** in memory, `logicalID → expiry`, TTL 30 min, lost on quit. Consulted by
-  the ladder's re-selections and by `VpnGateway.autoConnect()` (launch and wake), so a
-  wake does not return to the dead server. **A user-initiated connect ignores it** — a
+- **Avoid list:** in memory, `node → expiry`, TTL 30 min, lost on quit. Consulted by
+  the ladder's re-selections, by `VpnGateway.autoConnect()` (launch and wake — flagged for
+  the duration of its connect, since an auto-connect profile carries the `.profile` trigger)
+  and by any `.auto` quick connect, so a wake does not return to the dead node. **A user-initiated connect ignores it** — a
   hand-picked IT#44 connects to IT#44.
 - **On Demand:** the rungs use `VpnGateway`'s own `disconnect()` then `connect(with:)`,
   as `protonvpn://reconnect` does — which already disarms and re-arms On Demand correctly
@@ -95,8 +102,8 @@ feeds #2 / #3.
 
 | File | Change |
 |---|---|
-| **new** `libraries/Core/LegacyCommon/Sources/LegacyCommon/Core/TunnelLivenessSupervisor.swift` | the state machine; a `TunnelRecoveryActions` protocol (`restartSameServer()`, `reselect(excluding:)`); the TTL avoid list. Clock via `@Dependency(\.continuousClock)`, as `AppStateManager` does |
-| `…/Core/VpnManager+LocalAgent.swift` `didChangeState` | **+1 line**: post a new `AppEvent.localAgentStateChanged` carrying the real `LocalAgentState`. The single `localAgentStateChanged: (Bool?) -> Void` closure (already taken by `AppStateManager`, `AppStateManager.swift:426`) is left alone |
+| **new** `libraries/Core/LegacyCommon/Sources/LegacyCommon/Core/Liveness/` (`TunnelLivenessSupervisor`, `LivenessConfiguration`, `LivenessReselection`) + `Core/VpnGateway+Liveness.swift` (the glue) | the state machine; a `TunnelRecoveryActions` protocol (`restartSameServer()`, `reselect(excluding:)`); the TTL avoid list. Clock via `@Dependency(\.continuousClock)`, as `AppStateManager` does |
+| `…/Core/VpnManager+LocalAgent.swift` `didChangeState` | **+1 line**: post `Notification.Name.livenessLocalAgentStateChanged` (declared in LegacyCommon — `AppEvent` lives in `Domain`, which cannot see `LocalAgentState`) carrying the real `LocalAgentState`. The single `localAgentStateChanged: (Bool?) -> Void` closure (already taken by `AppStateManager`, `AppStateManager.swift:426`) is left alone |
 | `…/Core/VpnGateway.swift` | owns the supervisor; feeds it NE state (it already observes `AppEvent.appStateManagerStateChange`) and connect events; implements the two actions; passes `excluding` into selection; active only when `!shouldUseNewConnectionFeature` |
 | `…/Core/VpnServerSelector.swift` | the `excluding:` parameter |
 | `apps/macos/…/NavigationService.swift` `handleWake` | tells the supervisor a wake happened (settle window) |
@@ -139,14 +146,15 @@ package; NE's own On Demand respawn.
 
 1. Shipped app Disconnected; the fork launched by path and connected (repo rules: never
    two tunnels; launch by path).
-2. `sudo route -n add -host <fork's server IP> 127.0.0.1 -blackhole` — reproduces
+2. Block the fork's server IP in a private pf anchor (`com.apple/liveness-falsifier`, behind a
+   reference-counted `pfctl -E` token; states to it killed) — reproduces
    2026-09-10: NE stays Connected, the local agent goes `serverUnreachable`.
 3. **PASS:** within ~3 min the fork's log shows `[liveness] rung 1` then `rung 2`, a
-   `Server selected:` naming a *different* logical server, `10.2.0.1` answers, the exit IP
+   `Server selected:` naming a server on a *different* node, `10.2.0.1` answers, the exit IP
    changes. **FAIL:** still on the blackholed server after 5 min, or any rung within the
    first 60 s.
 4. Record the extension PID before and after rung 1 (the fresh-process question, § 1).
-5. Clean-up: `sudo route -n delete -host <ip>`; quit the fork; the shipped app's Quick
+5. Clean-up: flush the anchor and release the token (the script does it on every exit); quit the fork; the shipped app's Quick
    Connect. Steps 2 and 5 need ac's sudo.
 
 **No false positives:** the fork on a normal connection for ~30 min with zero
@@ -157,3 +165,17 @@ package; NE's own On Demand respawn.
 - `just test` green with the new tests; the live falsifier PASSes on m4m with its log
   lines pasted on #3 and #4.
 - #3 and #4 closed with that evidence; the extension-PID finding recorded on #2 / #3.
+
+## Amendments while implementing (2026-09-11)
+
+- **Exclusion unit → the node** (§ 2), evidence above.
+- **pf, not a blackhole route, for the falsifier** (§ 4). NE installs no host route to the
+  endpoint (`netstat -rn` has no `149.22.91.161` while the shipped app is connected to it),
+  and the WireGuard extension sends from an interface-bound socket, whose scoped route lookup
+  would most likely bypass an unscoped blackhole route — the test would prove nothing. pf
+  drops per packet regardless. Scripted: `just liveness-falsifier` (`tools/liveness-falsifier.sh`).
+- **Review fixes** (independent review of `57fd2c0fb..054e3a4c6`): the pending re-selection
+  is cleared right after the ladder's own `connect(with:)` returns, so an early return
+  (deprecated protocol, authorizer refusal) cannot hand it to a later, unrelated connect; and
+  `autoConnect()` is flagged so an auto-connect *profile* (trigger `.profile`) still skips
+  avoided nodes.

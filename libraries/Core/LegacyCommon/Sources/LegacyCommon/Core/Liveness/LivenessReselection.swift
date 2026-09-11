@@ -22,7 +22,7 @@ import CommonNetworking
 import Domain
 
 /// The requests the liveness ladder tries, in order, when it abandons a dead server; the caller excludes the dead
-/// logical servers from each (docs/2026-09-11-liveness-ladder-design.md § 2). Same intent first; a request pinned
+/// nodes from each (docs/2026-09-11-liveness-ladder-design.md § 2). Same intent first; a request pinned
 /// to one server widens to that server's exit country; then Quick Connect. A gateway never widens — leaving a
 /// dedicated gateway changes the security posture. A Secure Core "server" request already selects by country.
 enum LivenessReselection {

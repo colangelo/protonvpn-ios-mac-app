@@ -77,6 +77,7 @@ class VpnServerSelector {
     }
 
     /// Returns a server that best suits connection request
+    /// - Parameter excluding: fork (liveness ladder) — nodes (`Logical.domain`) to skip; see `firstServer`.
     public func selectServer(
         connectionRequest: ConnectionRequest,
         fallbackToStandard: Bool = false,
@@ -136,18 +137,20 @@ class VpnServerSelector {
         return ServerModel(server: server)
     }
 
-    /// Fork (liveness ladder, #4): `getFirstServer`, skipping the given logical servers. `fastest` is a
-    /// deterministic score order, so asking again without this returns the same dead server.
+    /// Fork (liveness ladder, #4): `getFirstServer`, skipping every logical server on the given nodes
+    /// (`Logical.domain`, e.g. `node-it-09.protonvpn.net` — IT#96 and IT#105 both live there, so a dead node takes
+    /// several logical servers down). `fastest` is a deterministic score order: without this, asking again returns
+    /// the same dead server.
     private func firstServer(
         filteredBy filters: [VPNServerFilter],
         orderedBy order: VPNServerOrder,
-        excluding: Set<String>
+        excluding nodes: Set<String>
     ) -> VPNServer? {
-        guard !excluding.isEmpty else {
+        guard !nodes.isEmpty else {
             return repository.getFirstServer(filteredBy: filters, orderedBy: order)
         }
         guard let candidate = repository.getServers(filteredBy: filters, orderedBy: order)
-            .first(where: { !excluding.contains($0.logical.id) }) else {
+            .first(where: { !nodes.contains($0.logical.domain) }) else {
             return nil
         }
         return repository.getFirstServer(filteredBy: [.logicalID(candidate.logical.id)], orderedBy: order)

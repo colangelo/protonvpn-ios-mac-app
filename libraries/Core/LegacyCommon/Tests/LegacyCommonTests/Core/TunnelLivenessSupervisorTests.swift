@@ -31,8 +31,8 @@ private final class RecoveryActionsSpy: TunnelRecoveryActions {
         calls.append("restart")
     }
 
-    func reselect(excluding logicalIDs: Set<String>) {
-        calls.append("reselect:" + logicalIDs.sorted().joined(separator: ","))
+    func reselect(excluding nodes: Set<String>) {
+        calls.append("reselect:" + nodes.sorted().joined(separator: ","))
     }
 }
 

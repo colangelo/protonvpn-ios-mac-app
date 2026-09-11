@@ -30,13 +30,13 @@ extension Notification.Name {
 protocol TunnelRecoveryActions: AnyObject {
     /// Rung 1 (patch B): disconnect, then connect the saved request again.
     func restartSameServer()
-    /// Rung 2+ (patch C): disconnect, then connect the saved request with these logical servers excluded.
-    func reselect(excluding logicalIDs: Set<String>)
+    /// Rung 2+ (patch C): disconnect, then connect the saved request with every logical server on these nodes (`Logical.domain`) excluded.
+    func reselect(excluding nodes: Set<String>)
 }
 
 /// Patches B and C as one ladder (docs/2026-09-11-liveness-ladder-design.md). NE says Connected but the local
 /// agent has not been connected for `deadAfter` → restart the same connection → still dead after `rungWindow` →
-/// re-select excluding the dead logical server (avoided for `avoidFor`), at most `maxReselections` times, then
+/// re-select excluding the dead server's node (avoided for `avoidFor`), at most `maxReselections` times, then
 /// give up until the next connect or wake. Every input is called on the main thread; timers hop back to it.
 final class TunnelLivenessSupervisor {
     @Dependency(\.continuousClock) private var clock
@@ -44,7 +44,7 @@ final class TunnelLivenessSupervisor {
     let configuration: LivenessConfiguration
     weak var actions: TunnelRecoveryActions?
 
-    /// Logical servers the ladder abandoned within the last `avoidFor`.
+    /// Nodes (`Logical.domain`) the ladder abandoned within the last `avoidFor`.
     var avoided: Set<String> {
         Set(avoidExpiries.keys)
     }
@@ -76,16 +76,16 @@ final class TunnelLivenessSupervisor {
 
     // MARK: - Inputs
 
-    /// NE reports `.connected`; `logicalID` is the active server's.
-    func tunnelDidConnect(to logicalID: String?) {
-        guard !(tunnelConnected && server == logicalID) else {
+    /// NE reports `.connected`; `node` is the active server's (`ServerModel.domain`).
+    func tunnelDidConnect(to node: String?) {
+        guard !(tunnelConnected && server == node) else {
             return // the same state posted again
         }
         if gaveUp {
             resetOutage() // a connect the ladder did not make: start over
         }
         tunnelConnected = true
-        server = logicalID
+        server = node
         agentConnected = false
         sawAgentFailure = false
         blocked = false
@@ -214,10 +214,10 @@ final class TunnelLivenessSupervisor {
 
     // MARK: - Avoid list
 
-    private func avoid(_ logicalID: String) {
-        avoidExpiries[logicalID]?.cancel()
-        avoidExpiries[logicalID] = after(configuration.avoidFor) { [weak self] in
-            self?.avoidExpiries[logicalID] = nil
+    private func avoid(_ node: String) {
+        avoidExpiries[node]?.cancel()
+        avoidExpiries[node] = after(configuration.avoidFor) { [weak self] in
+            self?.avoidExpiries[node] = nil
         }
     }
 

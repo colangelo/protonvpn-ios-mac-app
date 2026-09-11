@@ -124,6 +124,7 @@ public class VpnGateway: VpnGatewayProtocol {
     // Fork (liveness ladder, #3 #4): see TunnelLivenessSupervisor and VpnGateway+Liveness.swift.
     lazy var liveness = TunnelLivenessSupervisor(configuration: .load(from: .standard))
     var pendingLivenessReselection: (excluding: Set<String>, candidates: [ConnectionRequest])?
+    var livenessAutomaticConnect = false // set for the duration of autoConnect()'s synchronous connect
     var livenessObservers: [NSObjectProtocol] = []
 
     public weak var alertService: CoreAlertService? {
@@ -236,6 +237,8 @@ public class VpnGateway: VpnGatewayProtocol {
             guard let self, !enabled else {
                 return
             }
+            livenessAutomaticConnect = true // fork: an auto-connect skips nodes the liveness ladder abandoned
+            defer { livenessAutomaticConnect = false }
 
             guard let profile = profileManager.autoConnectProfile else {
                 quickConnect(trigger: .auto)
@@ -767,7 +770,7 @@ public class VpnGateway: VpnGatewayProtocol {
             return
         }
         connection = ConnectionStatus.forAppState(state)
-        livenessAppStateChanged(state, server: appStateManager.activeConnection()?.server.id)
+        livenessAppStateChanged(state, server: appStateManager.activeConnection()?.server.domain)
         postConnectionInformation()
     }
 

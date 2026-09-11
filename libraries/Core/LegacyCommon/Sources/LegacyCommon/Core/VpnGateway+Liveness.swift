@@ -71,19 +71,20 @@ extension VpnGateway: TunnelRecoveryActions {
         #endif
     }
 
-    func livenessAppStateChanged(_ state: AppState, server logicalID: String?) {
+    func livenessAppStateChanged(_ state: AppState, server node: String?) {
         guard !FeatureFlagsRepository.isConnectionFeatureEnabled else {
             return
         }
         if case .connected = state {
-            liveness.tunnelDidConnect(to: logicalID)
+            liveness.tunnelDidConnect(to: node)
         } else {
             liveness.tunnelDidDisconnect()
         }
     }
 
     /// The server `connect(with:)` uses. A pending ladder re-selection first — the saved request stays the saved
-    /// request, only the server differs; otherwise an automatic connect skips avoided servers when it can.
+    /// request, only the server differs; otherwise an automatic connect (`autoConnect()`, whatever its profile's
+    /// trigger, or any `.auto` quick connect) skips avoided nodes when something else matches.
     func selectServerForConnect(_ request: ConnectionRequest) -> ServerModel? {
         if let pending = pendingLivenessReselection {
             pendingLivenessReselection = nil
@@ -101,7 +102,7 @@ extension VpnGateway: TunnelRecoveryActions {
             )
             return nil
         }
-        if request.trigger == .auto, !liveness.avoided.isEmpty,
+        if request.trigger == .auto || livenessAutomaticConnect, !liveness.avoided.isEmpty,
            let server = selectServer(connectionRequest: request, excluding: liveness.avoided) {
             return server
         }
@@ -117,7 +118,7 @@ extension VpnGateway: TunnelRecoveryActions {
         }
     }
 
-    func reselect(excluding logicalIDs: Set<String>) {
+    func reselect(excluding nodes: Set<String>) {
         let saved = lastConnectionRequest
         let candidates = LivenessReselection.candidates(
             saved: saved,
@@ -127,8 +128,11 @@ extension VpnGateway: TunnelRecoveryActions {
             guard let self else {
                 return
             }
-            pendingLivenessReselection = (logicalIDs, candidates)
+            pendingLivenessReselection = (nodes, candidates)
             connect(with: saved ?? candidates[0])
+            // `connect(with:)` selects synchronously — or returns earlier (deprecated protocol, authorizer refusal);
+            // either way the pending re-selection must not reach a later, unrelated connect.
+            pendingLivenessReselection = nil
         }
     }
 }

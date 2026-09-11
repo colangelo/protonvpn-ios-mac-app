@@ -56,6 +56,10 @@ class VpnServerSelectorTests: XCTestCase {
             makeMockServer(id: "CH1", countryCode: "CH", tier: 2, score: 2, status: 0),
             makeMockServer(id: "PL0", countryCode: "PL", tier: 1, score: 7, protocols: .ikev2),
             makeMockServer(id: "PL1", countryCode: "PL", tier: 2, score: 6, protocols: [.wireGuardTLS, .wireGuardUDP]),
+            // Fork (liveness ladder): two logical servers on one node, as IT#96 and IT#105 share node-it-09
+            makeMockServer(id: "IT0", countryCode: "IT", domain: "node-it-1", tier: 1, score: 8),
+            makeMockServer(id: "IT1", countryCode: "IT", domain: "node-it-1", tier: 1, score: 9),
+            makeMockServer(id: "IT2", countryCode: "IT", domain: "node-it-2", tier: 1, score: 10),
         ]
 
         Self.mockServers = mockServers.reduce(into: [:]) { $0[$1.logical.id] = $1 }
@@ -564,11 +568,18 @@ class VpnServerSelectorTests: XCTestCase {
         XCTAssertNil(select(.country("US", .server(pinned)), excluding: ["US1"]))
     }
 
+    /// The unit of exclusion is the node (`Logical.domain`): a dead node takes every logical server on it down.
+    func testExcludingANodeSkipsEveryLogicalServerOnIt() {
+        XCTAssertEqual(select(.country("IT", .fastest), excluding: [])?.id, "IT0")
+        XCTAssertEqual(select(.country("IT", .fastest), excluding: ["node-it-1"])?.id, "IT2")
+    }
+
     // MARK: - Helpers
 
     private static func makeMockServer(
         id: String,
         countryCode: String,
+        domain: String? = nil, // fork: the node, shared by several logical servers
         gatewayName: String? = nil,
         tier: Int,
         score: Double,
@@ -580,7 +591,7 @@ class VpnServerSelectorTests: XCTestCase {
             logical: Logical(
                 id: id,
                 name: id,
-                domain: id,
+                domain: domain ?? id,
                 load: 0,
                 entryCountryCode: countryCode,
                 exitCountryCode: countryCode,

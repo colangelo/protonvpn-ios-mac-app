@@ -1,11 +1,12 @@
 # protonvpn-ios-mac-app — our fork of Proton VPN's Apple app (prepared 2026-09-10; build spike 2026-09-11)
 
 This is a fork of [ProtonVPN/ios-mac-app](https://github.com/ProtonVPN/ios-mac-app)
-(GPLv3). State: **the macOS app compiles from a GitHub clone** (unsigned, Xcode
-26.6, `main` at `b1a5e1dc5`); the **signed build is pending an Apple ID in
-Xcode**, and the falsifier (a login in a self-built app) has not run yet — see
-§ Build prerequisites and Gitea `AC-forks/protonvpn-ios-mac-app#1`. None of the
-four behaviour patches has been started. Read this file first; the detail
+(GPLv3). State: **the build spike passed on 2026-09-11** — a GitHub clone of
+`main` compiles, signs under our team, launches and logs in to Proton's API
+(Gitea `AC-forks/protonvpn-ios-mac-app#1`, closed; the step-by-step account is
+`docs/2026-09-11-build-spike.md`). The tunnel has **not** been exercised by the
+fork yet (#6), and none of the four behaviour patches has been started (#2–#5).
+Read this file first; the detail
 lives in the pointers below, and every claim there carries its measurement.
 
 ## Why this fork exists
@@ -74,9 +75,10 @@ versus Proton's GitLab, and what the justfile does about each:
 | Submodules | `.gitmodules` has relative GitLab URLs. Public mirrors exist at the exact pinned commits: `ProtonMail/protoncore_ios`, `ProtonMail/apple-fusion`, `ProtonVPN/wireguard-apple`. `swift-cargo` has none and nothing in the build references it. | `just submodules` (sets `submodule.*.url` in `.git/config`; `.gitmodules` untouched) |
 | `protunFFI` | A `.binaryTarget` on `nexus.protontech.ch` — DNS resolves, connection times out; SwiftPM fetches it at resolution even though it is `condition: .when(platforms: [.iOS])`. `ProtonVPN/protun` publishes the xcframework on GitHub releases (module named `protun`, not `protunFFI` — irrelevant on macOS: `#if canImport(protunFFI)`). `NEProviders/Package.swift` flipped to upstream's own `.local` switch. | `just protun-fetch` (macOS slice only, ~110 MB, gitignored `Frameworks/`) |
 | Secrets | The macOS app needs five `ObfuscatedConstants` fields; the only one that matters is the API URL, and that is **committed** (`DoHVPN.liveURL = "https://vpn-api.proton.me"`). Three library packages (`LegacyCommon`, `HomeShared`, `SettingsShared`) also reference the class and need their own ignored file. | `just secrets` (four gitignored files; nothing secret in them) |
-| Sparkle | `SUEnableAutomaticChecks` → `false` in `apps/macos/ProtonVPN/Info.plist`; the feed URL is still there and `UpdateManager` still builds the updater, so "Check for updates" would still offer Proton's build — do not click it. | — |
+| Sparkle | `SUEnableAutomaticChecks=false` alone still showed "Unable to Check For Updates" at every launch (the updater starts anyway and its XPC helpers fail under our signature). The fork drops `SUFeedURL` and `UpdateManager` only starts the updater when a feed exists — i.e. never. | — |
 | Bundle IDs | `ch.protonvpn.*` are Proton's App IDs; renamed to `io.github.colangelo.protonvpn.*` in `b1a5e1dc5` (13 files: pbxproj, entitlements, extension Info.plists, four Swift literals). **Fork-only, never upstream.** | — |
-| Signing | Team `CW56R63WQF` ("Alfredo Colangelo"; `Apple Development` cert valid to 2027-08). Automatic signing must register four App IDs with NetworkExtension/App Groups/Keychain/Associated Domains/Push, which needs **an Apple ID signed in to Xcode** (Settings → Accounts) — on 2026-09-11 there was none and `just build` stopped with `No Accounts`. Headless alternative: an App Store Connect API key via `-authenticationKeyPath`. | `just build` |
+| Keychain | Login-keychain items are addressed by service/label and both apps used the same literals (`KeychainConstants.appKeychain = "ProtonVPN"`, `VpnKeychain.StorageKey` `ProtonVPN-Server-Password` / `_ike_root` / `_wg_settings`), so the fork prompted for — and after Allow read — the shipped app's items. Prefixed with the fork's identity. **Fork-only.** | — |
+| Signing | Team `CW56R63WQF` ("Alfredo Colangelo", paid — proven by the issued NE-entitled profile; `Apple Development` cert valid to 2027-08). Needs **an Apple ID signed in to Xcode** (Settings → Accounts; `xcodebuild` reports `No Accounts` otherwise) and, once per Mac, `-allowProvisioningDeviceRegistration` (development profiles list Mac UDIDs: `Device "m4m" isn't registered`). Headless alternative: an App Store Connect API key via `-authenticationKeyPath`. | `just build` |
 
 Mechanics that cost a round-trip: build the **workspace** (`ProtonVPN.xcworkspace`),
 not `apps/macos/macOS.xcodeproj` — the local packages are workspace members and
@@ -90,8 +92,14 @@ configuration (`Debug` only drops the `-systemextension` entitlement suffix), an
 `AppDelegate` submits the activation request at launch, so *running* the built
 app for a tunnel needs it in `/Applications`; the login does not.
 
-The falsifier is unchanged: *a login in a self-built app*. Compile: **pass**.
-Sign and log in: pending the Apple ID.
+Running the Debug build shows an **environment selector** before the login
+(`EnvironmentSelectorFeature`; production is preselected, "Use and continue").
+Pre-seed `defaults write io.github.colangelo.protonvpn.mac AutoConnect -bool
+false` before a first launch next to the shipped app, so the fork cannot start a
+second tunnel. The fork's log: `~/Library/Containers/io.github.colangelo.protonvpn.mac/Data/Library/Logs/ProtonVPN.log`.
+
+The falsifier — *a login in a self-built app* — **passed 2026-09-11 10:05Z**
+(2FA login, `Session status is now established`, a fresh VPN auth certificate).
 
 ## Where the documentation lives
 

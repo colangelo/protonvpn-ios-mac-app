@@ -348,6 +348,7 @@ extension VpnManager: LocalAgentDelegate {
 
     func didChangeState(state: LocalAgentState) {
         log.debug("Local agent state changed to \(state)", category: .localAgent, event: .stateChange)
+        NotificationCenter.default.post(name: .livenessLocalAgentStateChanged, object: state) // fork: liveness ladder
 
         isLocalAgentConnected = state == .connected
 

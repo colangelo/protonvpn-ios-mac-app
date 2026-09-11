@@ -121,6 +121,11 @@ public class VpnGateway: VpnGatewayProtocol {
 
     private var connectionPreparer: VpnConnectionPreparer?
 
+    // Fork (liveness ladder, #3 #4): see TunnelLivenessSupervisor and VpnGateway+Liveness.swift.
+    lazy var liveness = TunnelLivenessSupervisor(configuration: .load(from: .standard))
+    var pendingLivenessReselection: (excluding: Set<String>, candidates: [ConnectionRequest])?
+    var livenessObservers: [NSObjectProtocol] = []
+
     public weak var alertService: CoreAlertService? {
         didSet {
             serverTierChecker.alertService = alertService
@@ -203,6 +208,7 @@ public class VpnGateway: VpnGatewayProtocol {
         AppEvent.planChanged.subscribe(self, selector: #selector(userPlanChanged))
         AppEvent.userDelinquent.subscribe(self, selector: #selector(userBecameDelinquent))
         AppEvent.needsReconnect.subscribe(self, selector: #selector(reconnectOnNotification))
+        startLiveness()
     }
 
     public func userTier() throws -> Int {
@@ -493,7 +499,7 @@ public class VpnGateway: VpnGatewayProtocol {
         gatherParametersAndConnect(
             requestId: requestWithUpdatedServerType.id,
             with: `protocol`,
-            server: selectServer(connectionRequest: requestWithUpdatedServerType),
+            server: selectServerForConnect(requestWithUpdatedServerType),
             netShieldType: requestWithUpdatedServerType.netShieldType,
             natType: natType,
             safeMode: safeMode,
@@ -502,7 +508,7 @@ public class VpnGateway: VpnGatewayProtocol {
         )
     }
 
-    private func selectServer(connectionRequest: ConnectionRequest) -> ServerModel? {
+    func selectServer(connectionRequest: ConnectionRequest, excluding: Set<String> = []) -> ServerModel? {
         do {
             let currentUserTier = try userTier() // accessing from the keychain for each server is very expensive
 
@@ -523,7 +529,11 @@ public class VpnGateway: VpnGatewayProtocol {
             }
 
             // when we want to enforce p2p we'll fallback to the fastest if no p2p servers found
-            let selected = selector.selectServer(connectionRequest: connectionRequest, fallbackToStandard: connectionRequest.serverType == .p2p)
+            let selected = selector.selectServer(
+                connectionRequest: connectionRequest,
+                fallbackToStandard: connectionRequest.serverType == .p2p,
+                excluding: excluding
+            )
             log.debug("Server selected: \(selected?.logDescription ?? "-")", category: .connectionConnect)
             return selected
 
@@ -757,6 +767,7 @@ public class VpnGateway: VpnGatewayProtocol {
             return
         }
         connection = ConnectionStatus.forAppState(state)
+        livenessAppStateChanged(state, server: appStateManager.activeConnection()?.server.id)
         postConnectionInformation()
     }
 

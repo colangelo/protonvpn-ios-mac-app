@@ -513,6 +513,57 @@ class VpnServerSelectorTests: XCTestCase {
         XCTAssertEqual(currentServerType, ServerType.secureCore)
     }
 
+    // MARK: - Fork: liveness ladder exclusion (#4)
+
+    private func select(
+        _ connectionType: ConnectionRequestType,
+        excluding: Set<String>,
+        notified: ((ResolutionUnavailableReason) -> Void)? = nil
+    ) -> ServerModel? {
+        withDependencies {
+            $0.serverRepository = repository
+        } operation: {
+            let selector = VpnServerSelector(
+                serverType: .standard,
+                userTier: 3,
+                connectionProtocol: connectionProtocol,
+                smartProtocolConfig: smartProtocolConfig,
+                appStateGetter: appStateGetter
+            )
+            selector.notifyResolutionUnavailable = { _, _, reason in notified?(reason) }
+            let request = ConnectionRequest(
+                serverType: .standard,
+                connectionType: connectionType,
+                connectionProtocol: connectionProtocol,
+                netShieldType: .off,
+                natType: .default,
+                safeMode: true,
+                portForwarding: true,
+                profileId: nil,
+                profileName: nil,
+                trigger: nil
+            )
+            return selector.selectServer(connectionRequest: request, excluding: excluding)
+        }
+    }
+
+    func testExclusionSkipsTheFastestAndPicksTheNextBestScore() {
+        XCTAssertEqual(select(.country("US", .fastest), excluding: [])?.id, "US1") // score 6 beats US0's 7
+        XCTAssertEqual(select(.country("US", .fastest), excluding: ["US1"])?.id, "US0")
+    }
+
+    func testExcludingEveryCandidateReturnsNilWithoutAnUnavailabilityAlert() {
+        var reasons: [ResolutionUnavailableReason] = []
+        XCTAssertNil(select(.country("US", .fastest), excluding: ["US0", "US1"], notified: { reasons.append($0) }))
+        XCTAssertTrue(reasons.isEmpty, "a liveness re-selection must not push an alert: \(reasons)")
+    }
+
+    func testAnExcludedPinnedServerIsNotReturned() {
+        let pinned = ServerModel(server: servers["US1"]!)
+        XCTAssertEqual(select(.country("US", .server(pinned)), excluding: [])?.id, "US1")
+        XCTAssertNil(select(.country("US", .server(pinned)), excluding: ["US1"]))
+    }
+
     // MARK: - Helpers
 
     private static func makeMockServer(

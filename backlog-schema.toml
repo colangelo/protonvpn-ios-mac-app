@@ -1,0 +1,30 @@
+# protonvpn-ios-mac-app backlog schema — the declared, version-controlled set of
+# allowed Gitea labels for the agent-drivable Issues backlog in
+# AC-forks/protonvpn-ios-mac-app (the house mirror; the public fork on GitHub
+# carries no tracker). Extends the gitea-backlog skill's general defaults
+# (~/.config/claude/skills/gitea-backlog/general-schema.toml): scoped type/
+# status/ horizon/ needs/ + the reserved agent-relay channel come from
+# `general`. "Done" = closed, never a label.
+#
+# This file is ours (fork-only); it never goes upstream. Keep it out of any
+# PR branch aimed at ProtonVPN/ios-mac-app.
+
+[schema]
+version = 1
+extends = "general"
+
+# Single-user repo: horizon/ is enough — drop the priority axis.
+[scopes.priority]
+enabled = false
+
+# Fork subsystems (non-exclusive; an issue may span several).
+# build = toolchain, submodules, secrets reconstruction, signing; extension =
+# the WireGuard NetworkExtension (patch A); app = the macOS app's connect /
+# reconnect / server-selection logic (patches B, C); control = the URL-scheme /
+# On Demand control surface (patch D); upstream = syncing `develop` and PRs
+# back to ProtonVPN/ios-mac-app; heal = the macos-setup daemon this fork is
+# meant to retire.
+[scopes.area]
+exclusive = false
+color = "#1d76db"
+values = ["build", "extension", "app", "control", "upstream", "heal", "docs", "meta"]

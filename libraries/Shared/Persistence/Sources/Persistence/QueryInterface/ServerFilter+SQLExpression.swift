@@ -92,15 +92,19 @@ extension VPNServerFilter {
             let substringPattern = "%\(query)%" // use for filtering against columns containing diacritics
             let normalizedSubstringPattern = "%\(query.normalized)%" // filter against diacritic stripped columns
             let prefixPattern = "\(query)%"
-            return logical[Logical.Columns.exitCountryCode] == query.uppercased() // match country codes only exactly
-                || logical[Logical.Columns.entryCountryCode] == query.uppercased() // match country codes only exactly
-                || logical[Logical.Columns.city].like(normalizedSubstringPattern)
+            let countryCode = query.uppercased()
+            // Split into typed sub-expressions: as a single 9-term `||` chain, the Swift 6.3 (Xcode 26.6)
+            // type-checker gives up with "unable to type-check this expression in reasonable time".
+            let matchesCountryCode: SQLExpression = logical[Logical.Columns.exitCountryCode] == countryCode // match country codes only exactly
+                || logical[Logical.Columns.entryCountryCode] == countryCode
+            let matchesPlace: SQLExpression = logical[Logical.Columns.city].like(normalizedSubstringPattern)
                 || logical[Logical.Columns.state].like(normalizedSubstringPattern)
                 || logical[Logical.Columns.gatewayName].like(normalizedSubstringPattern)
                 || logical[Logical.Columns.translatedCity].like(substringPattern) // likely to contain diacritics
-                || localizedCountryName(logical[Logical.Columns.exitCountryCode]).like(normalizedSubstringPattern)
+            let matchesCountryName: SQLExpression = localizedCountryName(logical[Logical.Columns.exitCountryCode]).like(normalizedSubstringPattern)
                 || localizedCountryName(logical[Logical.Columns.entryCountryCode]).like(normalizedSubstringPattern)
-                || logical[Logical.Columns.name].like(prefixPattern)
+            let matchesName: SQLExpression = logical[Logical.Columns.name].like(prefixPattern)
+            return matchesCountryCode || matchesPlace || matchesCountryName || matchesName
 
         case let .city(name):
             return logical[Logical.Columns.city] == name

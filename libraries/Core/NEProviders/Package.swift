@@ -4,7 +4,11 @@
 import PackageDescription
 
 enum ProTUNFFITargetKind {
-    static let current: Self = .remote(
+    // Fork: upstream fetches this from Proton's internal Nexus (nexus.protontech.ch), which is
+    // firewalled from the outside. `Frameworks/protunFFI.xcframework` (gitignored) is populated by
+    // `just protun-fetch` from the public https://github.com/ProtonVPN/protun release.
+    static let current: Self = .local
+    static let upstream: Self = .remote(
         url: "https://nexus.protontech.ch/repository/vpn-protun/master/protunFFI.xcframework.zip",
         checksum: "c770dc20d2f23815cd030f8c7b982390aab1e9a7ef16caec6b57132d561d381f"
     )

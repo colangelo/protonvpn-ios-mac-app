@@ -133,6 +133,12 @@ build-unsigned:
 build:
     {{ xcb }} -allowProvisioningUpdates -allowProvisioningDeviceRegistration DEVELOPMENT_TEAM={{ team }} CODE_SIGN_STYLE=Automatic PROVISIONING_PROFILE_SPECIFIER="" build 2>&1 | grep -E 'error:|\*\* BUILD|\.app$' | grep -v DTDKRemoteDeviceConnection
 
+# Attended (your clicks + sudo): blocks the fork's server in a private pf anchor and waits for the ladder to move
+# it to another node — PASS/FAIL, extension PIDs and the log lines to paste on #3/#4. LIMIT=<s> to widen the wait.
+# The liveness-ladder falsifier on this Mac (docs/2026-09-11-liveness-ladder-design.md § 4)
+liveness-falsifier:
+    tools/liveness-falsifier.sh
+
 # Where the findings are (the AGENTS.md table, as paths)
 docs:
     @echo "~/_sync/dev/macos-setup/docs/2026-09-07-protonvpn-dead-tunnel-after-wake.md"

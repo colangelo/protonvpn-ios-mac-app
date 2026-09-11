@@ -1,11 +1,13 @@
 # protonvpn-ios-mac-app — our fork of Proton VPN's Apple app (prepared 2026-09-10; build spike 2026-09-11)
 
 This is a fork of [ProtonVPN/ios-mac-app](https://github.com/ProtonVPN/ios-mac-app)
-(GPLv3). State: **the build spike passed on 2026-09-11** — a GitHub clone of
-`main` compiles, signs under our team, launches and logs in to Proton's API
-(Gitea `AC-forks/protonvpn-ios-mac-app#1`, closed; the step-by-step account is
-`docs/2026-09-11-build-spike.md`). The tunnel has **not** been exercised by the
-fork yet (#6), and none of the four behaviour patches has been started (#2–#5).
+(GPLv3). State (2026-09-11): **the fork builds, signs, logs in, and tunnels**
+— a GitHub clone of `main` compiles and signs under our team (#1,
+`docs/2026-09-11-build-spike.md`), and `/Applications/ProtonVPN Fork.app`
+activates its own WireGuard system extension and connects next to the shipped
+app on m4m without disturbing it or the heal daemon (#6,
+`docs/2026-09-11-coexistence-run.md`). None of the four behaviour patches has
+been started (#2–#5); nothing goes upstream before #11.
 Read this file first; the detail
 lives in the pointers below, and every claim there carries its measurement.
 

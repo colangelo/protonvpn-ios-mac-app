@@ -29,7 +29,7 @@ public enum DomainConstants {
         #if os(iOS) || os(tvOS)
             public static let main = "ch.protonmail.vpn"
         #elseif os(macOS)
-            public static let main = "ch.protonvpn.mac"
+            public static let main = "io.github.colangelo.protonvpn.mac"
         #endif
     }
 
@@ -37,7 +37,7 @@ public enum DomainConstants {
         #if os(iOS) || os(tvOS)
             public static let main = "group.ch.protonmail.vpn"
         #elseif os(macOS)
-            public static let main = "\(appIdentifierPrefix)group.ch.protonvpn.mac"
+            public static let main = "\(appIdentifierPrefix)group.io.github.colangelo.protonvpn.mac"
         #endif
     }
 

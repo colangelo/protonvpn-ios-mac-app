@@ -36,8 +36,8 @@
     }
 
     public enum SystemExtensionType: String, CaseIterable {
-        case wireGuard = "ch.protonvpn.mac.WireGuard-Extension"
-        case plutonium = "ch.protonvpn.mac.Transparent-Proxy"
+        case wireGuard = "io.github.colangelo.protonvpn.mac.WireGuard-Extension"
+        case plutonium = "io.github.colangelo.protonvpn.mac.Transparent-Proxy"
 
         public var machServiceName: String {
             "\(DomainConstants.appIdentifierPrefix)group.\(rawValue)"

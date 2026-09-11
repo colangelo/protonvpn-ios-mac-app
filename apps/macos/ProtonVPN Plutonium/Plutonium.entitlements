@@ -10,7 +10,7 @@
 	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>$(TeamIdentifierPrefix)group.ch.protonvpn.mac</string>
+		<string>$(TeamIdentifierPrefix)group.io.github.colangelo.protonvpn.mac</string>
 	</array>
 	<key>com.apple.security.network.client</key>
 	<true/>

@@ -338,7 +338,7 @@ extension AppDelegate: NSApplicationDelegate {
     }
 
     private func startedAtLogin() -> Bool {
-        let launcherAppIdentifier = "ch.protonvpn.ProtonVPNStarter"
+        let launcherAppIdentifier = "io.github.colangelo.protonvpn.ProtonVPNStarter"
         for app in NSWorkspace.shared.runningApplications where app.bundleIdentifier == launcherAppIdentifier {
             return true
         }

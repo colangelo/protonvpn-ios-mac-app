@@ -41,6 +41,9 @@ public protocol PropertiesManagerProtocol: AnyObject {
     var blockOneTimeAnnouncement: Bool { get }
     var blockUpdatePrompt: Bool { get }
     var hasConnected: Bool { get set }
+    /// Fork: whether NE's On Demand (a bare `NEOnDemandRuleConnect`) is armed on every connect.
+    /// Upstream always arms it once the user has connected once; see VpnManager.
+    var onDemandEnabled: Bool { get set }
     var isSubsequentLaunch: Bool { get set }
     var firstLaunchReported: Bool { get set }
     var lastIkeConnection: ConnectionConfiguration? { get set }
@@ -163,6 +166,7 @@ public final class PropertiesManager: PropertiesManagerProtocol {
         case blockUpdatePrompt = "BlockUpdatePrompt"
         case autoConnectProfile = "AutoConnect_"
         case connectOnDemand = "ConnectOnDemand"
+        case onDemandEnabled = "OnDemandEnabled" // fork; `ConnectOnDemand` above is `hasConnected`, not On Demand
         case lastIkeConnection = "LastIkeConnection"
         case lastWireguardConnection = "LastWireguardConnection"
         case lastPreparingServer = "LastPreparingServer"
@@ -262,6 +266,10 @@ public final class PropertiesManager: PropertiesManagerProtocol {
     // Use to do first time connecting stuff if needed
     @BoolProperty(.connectOnDemand, notifyChangesWith: .hasConnected)
     public var hasConnected: Bool
+
+    // Fork: defaults to true (registered below) so a fresh install behaves like upstream;
+    // `defaults write <bundle id> OnDemandEnabled -bool false` turns NE's On Demand off.
+    @BoolProperty(.onDemandEnabled) public var onDemandEnabled: Bool
 
     @Property(.lastIkeConnection, notifyChangesWith: .activeConnectionChanged)
     public var lastIkeConnection: ConnectionConfiguration?
@@ -390,6 +398,7 @@ public final class PropertiesManager: PropertiesManagerProtocol {
             Keys.smartProtocol.rawValue: ConnectionProtocol.smartProtocol.shouldBeEnabledByDefault,
             Keys.discourageSecureCore.rawValue: true,
             Keys.showWhatsNewModal.rawValue: true,
+            Keys.onDemandEnabled.rawValue: true,
         ])
     }
 

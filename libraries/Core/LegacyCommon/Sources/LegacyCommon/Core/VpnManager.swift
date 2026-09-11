@@ -487,7 +487,11 @@ public final class VpnManager: VpnManagerProtocol {
 
         vpnManager.protocolConfiguration = configuration
         vpnManager.onDemandRules = [NEOnDemandRuleConnect()]
-        vpnManager.isOnDemandEnabled = hasConnected
+        // Fork: upstream arms On Demand unconditionally once the user has connected once
+        // (`hasConnected` — stored under the misleading key "ConnectOnDemand"). The preference
+        // lets it be switched off: with it off, reconnection after a network change is the
+        // app's job (autoConnectIfEnabled) rather than NE's, which is what patches B/C rely on.
+        vpnManager.isOnDemandEnabled = hasConnected && propertiesManager.onDemandEnabled
         vpnManager.isEnabled = true
 
         let saveToPreferences = {

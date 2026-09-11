@@ -58,6 +58,8 @@
             }
         }
 
+        public var onDemandEnabled: Bool = true
+
         public var blockOneTimeAnnouncement: Bool = false
         public var blockUpdatePrompt: Bool = false
         public var lastIkeConnection: ConnectionConfiguration?

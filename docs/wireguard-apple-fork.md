@@ -1,3 +1,11 @@
+---
+type: runbook
+title: "The wireguard-apple fork — submodule wiring and workflow"
+description: "Why the WireGuard adapter is a second fork (WireGuardAdapter keeps its Go handle private), its three remotes (colangelo/wireguard-apple, ProtonVPN/wireguard-apple, AC-forks/wireguard-apple) and branch model (release/ios tracks upstream, main is ours from the pinned 5742d28), how a change flows from the submodule's main to a pointer bump in the app repo, how to sync with upstream, and what a fresh clone needs."
+tags: [protonvpn, fork, wireguard-apple, submodule, runbook]
+timestamp: 2026-09-11
+---
+
 # The `wireguard-apple` fork — how the submodule is wired and worked on
 
 Created 2026-09-11 for patch A (Gitea `AC-forks/protonvpn-ios-mac-app#2`).

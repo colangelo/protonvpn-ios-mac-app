@@ -1,3 +1,11 @@
+---
+type: learning
+title: "Coexistence run 2026-09-11 — the fork's tunnel next to the shipped app"
+description: "How the fork activates its own WireGuard system extension from /Applications, connects, and hands the VPN back to the shipped Proton VPN app on m4m without the heal daemon noticing: why the product, process and NE-configuration names had to differ first (the daemon matches by name), the two keychain bugs the first run exposed (a label that was also a bundle resource name; a second implementation of the same key that would have hijacked the shipped app's WireGuard config), the verification table, and the facts established about activation, the Debug entitlement and Smart Protocol timing."
+tags: [protonvpn, fork, coexistence, system-extension, keychain, heal-daemon]
+timestamp: 2026-09-11
+---
+
 # Coexistence run, 2026-09-11 — the fork's tunnel next to the shipped app on m4m
 
 Gitea `AC-forks/protonvpn-ios-mac-app#6`. Follows `2026-09-11-build-spike.md`

@@ -1,3 +1,11 @@
+---
+type: learning
+title: "Build spike 2026-09-11 — a GitHub clone builds, signs and logs in"
+description: "What a GitHub clone of Proton VPN's macOS app lacks versus Proton's GitLab and how each gap was closed (public submodule mirrors, the firewalled protunFFI binary via upstream's .local switch, an Xcode 26.6 type-check split, reconstructed non-secret constants), the signing path under our team, the three first-launch surprises (Sparkle, shared keychain items, system-extension activation), the noise to ignore, and the learnings that generalise. Falsifier passed: 2FA login in the self-built app."
+tags: [protonvpn, fork, build, signing, xcode, spike]
+timestamp: 2026-09-11
+---
+
 # Build spike, 2026-09-11 — can a GitHub clone of Proton VPN's macOS app build, sign and log in?
 
 **Answer: yes.** Falsifier — *a login in a self-built app* — passed at 10:05Z

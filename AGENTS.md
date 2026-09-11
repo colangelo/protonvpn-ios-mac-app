@@ -137,6 +137,25 @@ pathspec, never `git add -A`; never `git push --all` from a synced tree (a
 folder is Syncthing-synced **including `.git`** to the other Mac: do not check
 out a different branch on one Mac while a session holds the tree on the other.
 
+**The WireGuard adapter is a second fork.** `external/wireguard-apple` (the
+`WireGuardAdapter`, the Go bridge, the path monitor — everything patch A
+touches) is a submodule pinned to Proton's `5742d28`; `WireGuardAdapter` keeps
+its Go handle private, so adapter-side changes need our own copy. Since
+2026-09-11 (`#2`):
+
+| Remote | URL | Role |
+|---|---|---|
+| `origin` | `https://github.com/colangelo/wireguard-apple.git` | our public fork of `ProtonVPN/wireguard-apple` |
+| `upstream` | `https://github.com/ProtonVPN/wireguard-apple.git` | Proton's; their branch is `release/ios` |
+| `internal` | `https://gitea.cat-bluegill.ts.net/AC-forks/wireguard-apple.git` | house mirror; default branch `main` |
+
+`release/ios` tracks upstream; **`main` is ours** from `5742d28`. A change
+goes: commit on the submodule's `main` → push `origin` + `internal` → bump the
+pointer in this repo (`git add external/wireguard-apple`) in its own commit.
+`just submodules` clones from our fork and adds the other two remotes. Upstream's
+`.gitmodules` is never edited. Its backlog is this repo's. Detail:
+`docs/wireguard-apple-fork.md`.
+
 ## How to start
 
 1. `just status` — remotes, branch, how far `develop` is behind upstream.

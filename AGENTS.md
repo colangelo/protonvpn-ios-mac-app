@@ -1,9 +1,11 @@
-# protonvpn-ios-mac-app — our fork of Proton VPN's Apple app (prepared 2026-09-10, parked)
+# protonvpn-ios-mac-app — our fork of Proton VPN's Apple app (prepared 2026-09-10; build spike 2026-09-11)
 
 This is a fork of [ProtonVPN/ios-mac-app](https://github.com/ProtonVPN/ios-mac-app)
-(GPLv3). It was **prepared, not started**: nothing is patched, nothing has been
-built. It exists so that an agent started in this folder can begin the work
-without re-deriving three days of findings. Read this file first; the detail
+(GPLv3). State: **the macOS app compiles from a GitHub clone** (unsigned, Xcode
+26.6, `main` at `b1a5e1dc5`); the **signed build is pending an Apple ID in
+Xcode**, and the falsifier (a login in a self-built app) has not run yet — see
+§ Build prerequisites and Gitea `AC-forks/protonvpn-ios-mac-app#1`. None of the
+four behaviour patches has been started. Read this file first; the detail
 lives in the pointers below, and every claim there carries its measurement.
 
 ## Why this fork exists
@@ -60,27 +62,36 @@ morning outage. C alone would have saved 2026-09-10.
   snapshot `entire contents` before iterating). One Accessibility approval per
   Mac, attributed to the parent binary (`gtimeout` in our case).
 
-## Build prerequisites (from upstream's README — the first spike)
+## Build prerequisites (measured 2026-09-11 — spike `AC-forks/protonvpn-ios-mac-app#1`)
 
-- Xcode **14.x** per the README (the tree is from 2026-06; check what it wants
-  now), Swift Package Manager dependencies resolved by Xcode.
-- A **paid Apple developer account** for the NetworkExtension and system
-  extension entitlements, and **unique bundle identifiers** — which means a
-  second VPN configuration and a fresh login on the test Mac.
-- **Secrets**: URLs and keys live in `ObfuscatedConstants.swift` files kept in a
-  **separate private Proton repository** (`Integration/Scripts/credentials.sh
-  setup -p <path> -r <remote>`). The project does not build without them; they
-  would have to be reconstructed. **This is the first question to answer, and
-  it may be the last.**
-- The app self-updates with **Sparkle** (11 references under `apps/macos`) — a
-  fork must disable that or it replaces itself.
-- System extensions need signing; for local development check
-  `systemextensionsctl developer on` and what it requires on the test Mac.
+The README's "Xcode 14.x" and "the project does not build without the private
+secrets" were both wrong for the macOS app. What a GitHub clone actually lacks
+versus Proton's GitLab, and what the justfile does about each:
 
-The first spike is therefore: *can a clean clone build at all, with
-reconstructed constants, signed by our team, and connect to Proton's API?* Its
-falsifier is a login in a self-built app. Time-box it; if the constants cannot
-be reconstructed, the fork stays a reading copy and the daemon stays the fix.
+| Gap | Finding | Recipe |
+|---|---|---|
+| Xcode | 26.6 works; upstream CI runs `xcode-26.2` (`.gitlab-ci.yml`). One expression no longer type-checks on Swift 6.3.3 (`Persistence/…/ServerFilter+SQLExpression.swift`, a nine-term `\|\|` chain) — split into typed sub-expressions in `4975ea5a6`, **upstream PR candidate**. | — |
+| Submodules | `.gitmodules` has relative GitLab URLs. Public mirrors exist at the exact pinned commits: `ProtonMail/protoncore_ios`, `ProtonMail/apple-fusion`, `ProtonVPN/wireguard-apple`. `swift-cargo` has none and nothing in the build references it. | `just submodules` (sets `submodule.*.url` in `.git/config`; `.gitmodules` untouched) |
+| `protunFFI` | A `.binaryTarget` on `nexus.protontech.ch` — DNS resolves, connection times out; SwiftPM fetches it at resolution even though it is `condition: .when(platforms: [.iOS])`. `ProtonVPN/protun` publishes the xcframework on GitHub releases (module named `protun`, not `protunFFI` — irrelevant on macOS: `#if canImport(protunFFI)`). `NEProviders/Package.swift` flipped to upstream's own `.local` switch. | `just protun-fetch` (macOS slice only, ~110 MB, gitignored `Frameworks/`) |
+| Secrets | The macOS app needs five `ObfuscatedConstants` fields; the only one that matters is the API URL, and that is **committed** (`DoHVPN.liveURL = "https://vpn-api.proton.me"`). Three library packages (`LegacyCommon`, `HomeShared`, `SettingsShared`) also reference the class and need their own ignored file. | `just secrets` (four gitignored files; nothing secret in them) |
+| Sparkle | `SUEnableAutomaticChecks` → `false` in `apps/macos/ProtonVPN/Info.plist`; the feed URL is still there and `UpdateManager` still builds the updater, so "Check for updates" would still offer Proton's build — do not click it. | — |
+| Bundle IDs | `ch.protonvpn.*` are Proton's App IDs; renamed to `io.github.colangelo.protonvpn.*` in `b1a5e1dc5` (13 files: pbxproj, entitlements, extension Info.plists, four Swift literals). **Fork-only, never upstream.** | — |
+| Signing | Team `CW56R63WQF` ("Alfredo Colangelo"; `Apple Development` cert valid to 2027-08). Automatic signing must register four App IDs with NetworkExtension/App Groups/Keychain/Associated Domains/Push, which needs **an Apple ID signed in to Xcode** (Settings → Accounts) — on 2026-09-11 there was none and `just build` stopped with `No Accounts`. Headless alternative: an App Store Connect API key via `-authenticationKeyPath`. | `just build` |
+
+Mechanics that cost a round-trip: build the **workspace** (`ProtonVPN.xcworkspace`),
+not `apps/macos/macOS.xcodeproj` — the local packages are workspace members and
+the project alone reports *Missing package product* for every one of them.
+Every build rewrites `ProtonVPN.xcworkspace/xcshareddata/swiftpm/Package.resolved`
+(drops the pins only `swift-cargo` pulled in) — `git checkout --` it before
+committing. `Internal Error: DecodingError … Corrupted JSON` lines in the log are
+the compilation cache (`COMPILATION_CACHE_ENABLE_CACHING` in `Config.xcconfig`),
+not a failure. The WireGuard extension is a **system extension** in every
+configuration (`Debug` only drops the `-systemextension` entitlement suffix), and
+`AppDelegate` submits the activation request at launch, so *running* the built
+app for a tunnel needs it in `/Applications`; the login does not.
+
+The falsifier is unchanged: *a login in a self-built app*. Compile: **pass**.
+Sign and log in: pending the Apple ID.
 
 ## Where the documentation lives
 
@@ -120,10 +131,13 @@ out a different branch on one Mac while a session holds the tree on the other.
 
 1. `just status` — remotes, branch, how far `develop` is behind upstream.
 2. `just sync-upstream` — fetch upstream and fast-forward `develop`.
-3. Open a Gitea issue on `AC-forks/protonvpn-ios-mac-app` for the build spike;
-   its first comment is the falsifier above.
-4. Work on `main`; keep upstream files untouched except where a patch needs
-   them, so rebases stay cheap.
+3. On a fresh clone: `just submodules`, `just protun-fetch`, `just secrets`,
+   then `just build-unsigned` (compile proof) and `just build` (signed).
+4. The spike is Gitea `AC-forks/protonvpn-ios-mac-app#1`; its comments carry
+   every measurement. Backlog labels: `backlog-schema.toml` (gitea-backlog skill).
+5. Work on `main`; keep upstream files untouched except where a patch needs
+   them, so rebases stay cheap. Keep the fork-only commits (bundle IDs, the
+   `.local` protun switch, Sparkle) apart from upstream-bound ones.
 
 Not a relay participant yet: register in infra's relay registry when work
 actually starts (see CONTEXT `AGENTS.md`).

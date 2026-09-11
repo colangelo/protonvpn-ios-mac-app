@@ -145,7 +145,12 @@ out a different branch on one Mac while a session holds the tree on the other.
    every measurement. Backlog labels: `backlog-schema.toml` (gitea-backlog skill).
 5. Work on `main`; keep upstream files untouched except where a patch needs
    them, so rebases stay cheap. Keep the fork-only commits (bundle IDs, the
-   `.local` protun switch, Sparkle) apart from upstream-bound ones.
+   `.local` protun switch, Sparkle, keychain names) apart from upstream-bound ones.
+6. **Nothing goes upstream until #11**: the patches exist (#2–#5), the fork has
+   replaced the shipped app on both Macs for about a week, and it demonstrably
+   fixes the wake outages in `macos-setup` — then PRs (#7, #8, and the patches)
+   with that evidence. Rule set by ac on 2026-09-11; ask before any
+   outward-facing action on `ProtonVPN/ios-mac-app`.
 
 Not a relay participant yet: register in infra's relay registry when work
 actually starts (see CONTEXT `AGENTS.md`).

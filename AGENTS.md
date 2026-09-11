@@ -85,6 +85,10 @@ versus Proton's GitLab, and what the justfile does about each:
 Mechanics that cost a round-trip: build the **workspace** (`ProtonVPN.xcworkspace`),
 not `apps/macos/macOS.xcodeproj` — the local packages are workspace members and
 the project alone reports *Missing package product* for every one of them.
+Package **tests** are the exception: the workspace's auto-generated package
+schemes have no test action, and the app scheme's test plans build and sign every
+app target — so `just test` runs `xcodebuild test -scheme LegacyCommon` from the
+package root, where Xcode's scheme does include the tests (#12).
 Every build rewrites `ProtonVPN.xcworkspace/xcshareddata/swiftpm/Package.resolved`
 (drops the pins only `swift-cargo` pulled in) — `git checkout --` it before
 committing. `Internal Error: DecodingError … Corrupted JSON` lines in the log are

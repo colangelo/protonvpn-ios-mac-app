@@ -87,11 +87,13 @@ secrets:
 # Everything a fresh clone needs before `just build`: submodules, the protun xcframework, the constants files
 setup: submodules protun-fetch secrets
 
-# The tests we own live in the LegacyCommon package (ControlLink …); upstream's app test targets don't build on
-# Xcode 26.6 (TrustKit/SDWebImage/GRDBSQLite unresolved in ProtonVPNmacOSTests) — tracked in the backlog.
-# Run our unit tests (LegacyCommon package scheme); pass e.g. `-only-testing:LegacyCommonTests/ControlLinkTests`
+# Runs from the package root: the workspace's auto-generated `LegacyCommon` scheme has no test action, the
+# package-root one does (own DerivedData, cold ~2 min, then ~1 min). 94 tests on 2026-09-11: ours (ControlLinkTests)
+# and upstream's (VpnServerSelector, LocalAgent, AppStateManager … — what patches B/C touch). Upstream's app test
+# targets don't build on Xcode 26.6 (ProtonVPNmacOSTests) — #12.
+# Run the LegacyCommon package's unit tests; pass e.g. `-only-testing:LegacyCommonTests/ControlLinkTests`
 test *ARGS:
-    xcodebuild test -workspace ProtonVPN.xcworkspace -scheme LegacyCommon -destination 'platform=macOS,arch=arm64' -skipMacroValidation -skipPackagePluginValidation {{ ARGS }} 2>&1 | grep -E "Test Case '.*(passed|failed)|Executed [0-9]+ tests|error:|\*\* TEST" | grep -vE 'DTDKRemoteDeviceConnection|DecodingError'
+    cd libraries/Core/LegacyCommon && xcodebuild test -scheme LegacyCommon -destination 'platform=macOS,arch=arm64' -skipMacroValidation -skipPackagePluginValidation {{ ARGS }} 2>&1 | grep -E "Test Case '.*(passed|failed)|Executed [0-9]+ tests|error:|\*\* TEST" | grep -vE 'DTDKRemoteDeviceConnection|DecodingError'
 
 # Fail if a tracked file contains a real absolute home path (public repo — PATTERNS/paths-in-tracked-files.md)
 lint-paths:

@@ -204,13 +204,16 @@ extension ManagerConfigurator {
     }
 
     private static func configurationTitle(for intent: ServerConnectionIntent, isProTUN: Bool) -> String {
+        // Fork: the title is what `scutil --nc status <name>` addresses. The shipped app's
+        // configuration is "ProtonVPN" and the macos-setup heal daemon watches it by that name,
+        // so the fork's must never collide (upstream: "<server> - <protocol>" in Debug, "Proton VPN" otherwise).
         #if DEBUG
             let serverName = intent.server.logical.name
             let transport = intent.tunnelSettings.transport
             let connectionProtocol = isProTUN ? "ProTUN" : VpnProtocol.wireGuard(transport).localizedDescription
-            return "\(serverName) - \(connectionProtocol)"
+            return "\(serverName) - \(connectionProtocol) (fork)"
         #else
-            return "Proton VPN"
+            return "ProtonVPN Fork"
         #endif
     }
 }

@@ -1,0 +1,6 @@
+# Per-repo opt-in for infra's tcc-path-guard PreToolUse hook (tools/tcc-path-guard.py):
+# $HOME-relative path prefixes that must NOT raise the "TCC-protected" prompt while
+# working in this repo. Only the fork's own sandbox container — its log, defaults and
+# database live there and every debugging step reads them. The shipped app's
+# container (ch.protonvpn.mac) and everything else under ~/Library stay guarded.
+Library/Containers/io.github.colangelo.protonvpn.mac

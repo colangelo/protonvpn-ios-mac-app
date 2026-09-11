@@ -93,9 +93,12 @@ public class VpnKeychain: VpnKeychainProtocol {
     private enum StorageKey {
         static let vpnCredentials = "vpnCredentials"
         static let openVpnPassword_old = "openVpnPassword"
-        static let vpnServerPassword = "ProtonVPN-Server-Password"
-        static let serverCertificate = "ProtonVPN_ike_root"
-        static let wireguardSettings = "ProtonVPN_wg_settings"
+        // Fork: these name keychain items shared with whatever app uses the same literal — the
+        // shipped Proton VPN app included (macOS prompted for "ProtonVPN-Server-Password" right
+        // after the fork's first login). Prefixed with the fork's identity; see KeychainConstants.
+        static let vpnServerPassword = "io.github.colangelo.protonvpn-Server-Password"
+        static let serverCertificate = "io.github.colangelo.protonvpn_ike_root"
+        static let wireguardSettings = "io.github.colangelo.protonvpn_wg_settings"
         static let widgetPublicKey = "ch.proton.vpn.widget.public_key"
     }
 

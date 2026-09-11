@@ -84,9 +84,10 @@ xcb := "xcodebuild -workspace ProtonVPN.xcworkspace -scheme ProtonVPN-macOS -con
 build-unsigned:
     {{ xcb }} CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build 2>&1 | grep -E 'error:|warning: .*(entitlement|profile)|\*\* BUILD' | grep -v DTDKRemoteDeviceConnection
 
+# Development profiles list Mac UDIDs, so a new Mac needs -allowProvisioningDeviceRegistration once.
 # Signed Debug build with automatic provisioning under our team (needs the Apple ID signed in to Xcode)
 build:
-    {{ xcb }} -allowProvisioningUpdates DEVELOPMENT_TEAM={{ team }} build 2>&1 | grep -E 'error:|\*\* BUILD|\.app$' | grep -v DTDKRemoteDeviceConnection
+    {{ xcb }} -allowProvisioningUpdates -allowProvisioningDeviceRegistration DEVELOPMENT_TEAM={{ team }} CODE_SIGN_STYLE=Automatic PROVISIONING_PROFILE_SPECIFIER="" build 2>&1 | grep -E 'error:|\*\* BUILD|\.app$' | grep -v DTDKRemoteDeviceConnection
 
 # Where the findings are (the AGENTS.md table, as paths)
 docs:

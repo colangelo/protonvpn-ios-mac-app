@@ -103,7 +103,14 @@ final class UpdateManager: NSObject {
 
         suDateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss ZZ"
 
-        self.updater = SPUStandardUpdaterController(updaterDelegate: self, userDriverDelegate: nil)
+        // Fork: without an SUFeedURL in Info.plist there is nothing to update from, and a started
+        // updater whose XPC helpers fail validation under our signature shows "Unable to Check For
+        // Updates" at every launch. Never start it in that case (a fork must not replace itself).
+        self.updater = SPUStandardUpdaterController(
+            startingUpdater: feedURLString != nil,
+            updaterDelegate: self,
+            userDriverDelegate: nil
+        )
     }
 
     @objc

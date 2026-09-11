@@ -173,5 +173,30 @@ pointer in this repo (`git add external/wireguard-apple`) in its own commit.
    with that evidence. Rule set by ac on 2026-09-11; ask before any
    outward-facing action on `ProtonVPN/ios-mac-app`.
 
-Not a relay participant yet: register in infra's relay registry when work
-actually starts (see CONTEXT `AGENTS.md`).
+## Agent relay (spec 2.36, variant `nats` — no committed relay surface)
+
+This repo is a relay participant since 2026-09-11 (registry row in infra
+`agent-relay/AGENTS.md`; Gitea `AC-forks/protonvpn-ios-mac-app` carries the
+four relay labels). Being a fork, it commits no `agent-relay/` directory: its
+primary channel is NATS.
+
+- **At session start, run `/check-relay`** — the only check that covers all
+  three channels (NATS queues, Gitea `agent-relay` issues on this repo, and the
+  file inbox other repos have). A hand-rolled scan is not a relay check: NATS
+  `interactive` messages leave no repo trace by design.
+- **To message another repo's agent — the criterion: Channel 0 addresses a
+  context; the relay addresses a role.** (1) Is the ask for a specific *live*
+  session holding the shared context, able to answer or coordinate now? →
+  `ListAgents` + `SendMessage` (Channel 0). Needing a durable *record* never
+  pushes you off Channel 0 — the record goes on the tracker either way;
+  needing durable *delivery* does, and a Channel-0 send confirms enqueue, not
+  delivery. (2) Else, must "not yet handled" stay visible to you? → a Gitea
+  `agent-relay` issue in the recipient repo. (3) Else → the recipient's primary
+  registry channel: `tools/relay-send --to <repo>` (infra) for a `nats` row, a
+  file in *their* `agent-relay/inbox/` for a file-inbox row; `--class auto`
+  only for work safe to run with nobody present, `interactive` when the answer
+  must reach a person.
+- Never put secrets in a message; reference the OpenBao path (`kv/…`).
+- Counterparts: `macos-setup` (the heal daemon, host config), `infra` (relay
+  registry, the TCC hook), both on `nats`. Full spec: infra
+  `agent-relay/AGENTS.md`.

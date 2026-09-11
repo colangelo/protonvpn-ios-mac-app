@@ -197,16 +197,40 @@ extension AppDelegate: NSApplicationDelegate {
 
     @objc
     private func getUrl(_ event: NSAppleEventDescriptor, withReplyEvent _: NSAppleEventDescriptor) {
-        guard let url = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue, url.starts(with: "protonvpn://refresh") else {
+        guard let url = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
+              let action = ControlLink.parse(url) else {
             log.debug("App activated with invalid url", category: .app)
             return
         }
 
-        log.debug("App activated with the refresh url, refreshing data", category: .app, metadata: ["url": "\(url)"])
         guard authKeychain.username != nil else {
-            log.debug("User not is logged in, not refreshing user data", category: .app)
+            log.debug("User is not logged in, ignoring url activation", category: .app, metadata: ["action": "\(action.rawValue)"])
             return
         }
+
+        // Fork: `disconnect`, `quick-connect` and `reconnect` are the main window's own actions,
+        // exposed so an outside supervisor (the macos-setup heal daemon) needs no UI scripting:
+        // `open -b io.github.colangelo.protonvpn.mac 'protonvpn://reconnect'`. See ControlLink.
+        switch action {
+        case .refresh:
+            refreshUserData(url: url)
+        case .disconnect:
+            log.info("Disconnect requested by url activation", category: .app)
+            navigationService.vpnGateway.disconnect()
+        case .quickConnect:
+            log.info("Quick connect requested by url activation", category: .app)
+            navigationService.vpnGateway.quickConnect(trigger: .quick)
+        case .reconnect:
+            log.info("Reconnect requested by url activation: disconnect, then quick connect", category: .app)
+            let gateway = navigationService.vpnGateway
+            gateway.disconnect {
+                gateway.quickConnect(trigger: .quick)
+            }
+        }
+    }
+
+    private func refreshUserData(url: String) {
+        log.debug("App activated with the refresh url, refreshing data", category: .app, metadata: ["url": "\(url)"])
 
         Task {
             log.debug("User is logged in, refreshing user data", category: .app)

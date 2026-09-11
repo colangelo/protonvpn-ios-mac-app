@@ -32,12 +32,15 @@ published:
 # Order for a clean clone: submodules → protun-fetch → secrets → build-unsigned → build.
 
 # Upstream's .gitmodules uses relative GitLab URLs; swift-cargo has no public mirror and nothing in the build uses it.
-# Check out the 3 submodules the build needs from their public GitHub mirrors
+# wireguard-apple comes from OUR fork (colangelo/wireguard-apple, `main` = ours, `release/ios` = upstream) — see docs/wireguard-apple-fork.md.
+# Check out the 3 submodules the build needs (2 public mirrors + our wireguard-apple fork)
 submodules:
     git config submodule.external/protoncore.url https://github.com/ProtonMail/protoncore_ios.git
     git config submodule.external/apple-fusion.url https://github.com/ProtonMail/apple-fusion.git
-    git config submodule.external/wireguard-apple.url https://github.com/ProtonVPN/wireguard-apple.git
+    git config submodule.external/wireguard-apple.url https://github.com/colangelo/wireguard-apple.git
     git submodule update --init external/protoncore external/apple-fusion external/wireguard-apple
+    git -C external/wireguard-apple remote get-url upstream >/dev/null 2>&1 || git -C external/wireguard-apple remote add upstream https://github.com/ProtonVPN/wireguard-apple.git
+    git -C external/wireguard-apple remote get-url internal >/dev/null 2>&1 || git -C external/wireguard-apple remote add internal https://gitea.cat-bluegill.ts.net/AC-forks/wireguard-apple.git
     git submodule status
 
 # Public ProTUN release to install as the local protunFFI xcframework (see NEProviders/Package.swift)

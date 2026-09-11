@@ -98,6 +98,9 @@ public class VpnKeychain: VpnKeychainProtocol {
         // after the fork's first login). Prefixed with the fork's identity; see KeychainConstants.
         static let vpnServerPassword = "io.github.colangelo.protonvpn-Server-Password"
         static let serverCertificate = "io.github.colangelo.protonvpn_ike_root"
+        // Upstream uses the keychain label as the bundle resource name too (ProtonVPN_ike_root.der,
+        // in LegacyCommon/Resources); the label is the fork's, the file name is not.
+        static let serverCertificateResource = "ProtonVPN_ike_root"
         static let wireguardSettings = "io.github.colangelo.protonvpn_wg_settings"
         static let widgetPublicKey = "ch.proton.vpn.widget.public_key"
     }
@@ -349,7 +352,7 @@ public class VpnKeychain: VpnKeychainProtocol {
     }
 
     public func storeServerCertificate() throws {
-        let certificateFile = Bundle.main.path(forResource: StorageKey.serverCertificate, ofType: "der")!
+        let certificateFile = Bundle.main.path(forResource: StorageKey.serverCertificateResource, ofType: "der")!
         let certificateData = NSData(contentsOfFile: certificateFile)!
         let certificate = SecCertificateCreateWithData(nil, certificateData)!
 

@@ -40,7 +40,10 @@ public enum TunnelKeychainImplementationError: Error {
 
 public struct TunnelKeychainImplementation {
     private enum StorageKey {
-        static let wireguardSettings = "ProtonVPN_wg_settings"
+        // Fork: must equal VpnKeychain.StorageKey.wireguardSettings (upstream: "ProtonVPN_wg_settings").
+        // The key is service+account of a login-keychain item with no access group, so the shipped
+        // app's item would otherwise be updated in place and its persistent reference hijacked.
+        static let wireguardSettings = "io.github.colangelo.protonvpn_wg_settings"
     }
 
     private let encoder = JSONEncoder()

@@ -200,3 +200,22 @@ primary channel is NATS.
 - Counterparts: `macos-setup` (the heal daemon, host config), `infra` (relay
   registry, the TCC hook), both on `nats`. Full spec: infra
   `agent-relay/AGENTS.md`.
+
+## Repo rules (learned 2026-09-11 — evidence in `docs/2026-09-11-session-learnings.md`)
+
+- **Launch the fork by path** (`open "/Applications/ProtonVPN Fork.app"`), never
+  `open -a`; control it by bundle id (`open -b io.github.colangelo.protonvpn.mac 'protonvpn://…'`).
+- **Never two tunnels.** Disconnect the shipped app before the fork connects and
+  restore it in the same script; verify with `scutil --nc status`, `ping 10.2.0.1`,
+  the exit IP — not the menu icon.
+- **Rename by literal.** Any identifier that is also a keychain service/label or a
+  bundle resource name is renamed by grepping the *string*, then auditing `forKey:`
+  and `forResource:`.
+- **The extension's log is the unified log**, subsystem `PROTON-WG`, read with
+  `log show … --info --debug`; keep the persistence profile on the test Mac.
+- **Nothing goes upstream before #11.** Fork-only commits (bundle ids, names,
+  Sparkle, keychain, `.local` protun) stay apart from upstream-bound ones.
+- **Never commit `ProtonVPN.xcworkspace/xcshareddata/swiftpm/Package.resolved`**;
+  `git checkout --` it before every commit.
+- **Pre-seed `AutoConnect=false`** in the fork's defaults before a first launch on a
+  Mac where the shipped app runs.

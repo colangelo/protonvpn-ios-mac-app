@@ -72,12 +72,51 @@ secrets:
 
     import Foundation
     '
-    printf '%s\nclass ObfuscatedConstants {\n    static let sentryDsnmacOS: String = ""\n    static let sentryDsniOS: String = ""\n\n    // DoH lookup host for alternative routing (ProtonCore DoH.apiHost); login uses DoHVPN.liveURL regardless.\n    static let apiHost: String = "vpn-api.proton.me"\n    static let humanVerificationV3Host = "https://verify.proton.me"\n\n    static let vpnIAPIdentifiers: Set<String> = []\n}\n' "$hdr" > apps/macos/ProtonVPN/ObfuscatedConstants.swift
+    # The app's file is also compiled into the UI-test targets (one pbxproj file reference, two build files), so it
+    # carries their fields too: Proton's internal test-environment hosts and two TOTP secrets — empty is fine.
+    printf '%s\nclass ObfuscatedConstants {\n    static let sentryDsnmacOS: String = ""\n    static let sentryDsniOS: String = ""\n\n    // DoH lookup host for alternative routing (ProtonCore DoH.apiHost); login uses DoHVPN.liveURL regardless.\n    static let apiHost: String = "vpn-api.proton.me"\n    static let humanVerificationV3Host = "https://verify.proton.me"\n\n    static let vpnIAPIdentifiers: Set<String> = []\n\n    // UI-test targets only (internal Proton environments; unused by us)\n    static let blackApiHost: String = ""\n    static let blackDefaultPath: String = ""\n    static let blackSignupDomain: String = ""\n    static let blackCaptchaHost: String = ""\n    static let blackHumanVerificationV3Host: String = ""\n    static let blackAccountHost: String = ""\n    static let blackDefaultHost: String = ""\n    static let twoFASecurityKey: String = ""\n    static let twoFAandTwoPassSecurityKey: String = ""\n}\n' "$hdr" > apps/macos/ProtonVPN/ObfuscatedConstants.swift
+    rm -f apps/macos/ProtonVPNUITests/ObfuscatedConstants.swift  # an earlier recipe wrote one here; nothing compiles it
     for d in libraries/Core/LegacyCommon/Sources/LegacyCommon libraries/Features/Home/Sources/HomeShared; do
       printf '%s\nenum ObfuscatedConstants {\n    static let fidoPortal: String = "https://account.proton.me/vpn/account-password"\n}\n' "$hdr" > "$d/ObfuscatedConstants.swift"
     done
     printf '%s\nenum ObfuscatedConstants {\n    // Internal Proton test environments; unused in our builds.\n    static let btiAPIHost: String = ""\n    static let blackAPIHost: String = ""\n}\n' "$hdr" > libraries/Features/Settings/Sources/SettingsShared/ObfuscatedConstants.swift
     git status --short --ignored | grep ObfuscatedConstants
+
+# ---- House verbs (PATTERNS/justfile.md) ----
+
+# Everything a fresh clone needs before `just build`: submodules, the protun xcframework, the constants files
+setup: submodules protun-fetch secrets
+
+# The tests we own live in the LegacyCommon package (ControlLink …); upstream's app test targets don't build on
+# Xcode 26.6 (TrustKit/SDWebImage/GRDBSQLite unresolved in ProtonVPNmacOSTests) — tracked in the backlog.
+# Run our unit tests (LegacyCommon package scheme); pass e.g. `-only-testing:LegacyCommonTests/ControlLinkTests`
+test *ARGS:
+    xcodebuild test -workspace ProtonVPN.xcworkspace -scheme LegacyCommon -destination 'platform=macOS,arch=arm64' -skipMacroValidation -skipPackagePluginValidation {{ ARGS }} 2>&1 | grep -E "Test Case '.*(passed|failed)|Executed [0-9]+ tests|error:|\*\* TEST" | grep -vE 'DTDKRemoteDeviceConnection|DecodingError'
+
+# Fail if a tracked file contains a real absolute home path (public repo — PATTERNS/paths-in-tracked-files.md)
+lint-paths:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Key on the RUNTIME home/username — a literal /Users/<name> in the checker is itself the thing this forbids.
+    if git grep -nI -F -e "$HOME" -e "/Users/$(id -un)" -- . ':!external' ; then
+      echo "error: tracked file contains a real home path — use a relative path, \$HOME, or /Users/you" >&2
+      exit 1
+    fi
+    echo "lint-paths: ok"
+
+# Regenerate docs/index.md from the docs' frontmatter (edit frontmatter, not the index; read the diff for deletions)
+docs-index:
+    node ~/_sync/dev/second-loop/src/okf.ts index docs
+
+# OKF gate for our docs (frontmatter present and parseable, index current)
+docs-check:
+    node ~/_sync/dev/second-loop/src/okf.ts check docs
+
+# Static checks: no real home paths in tracked files, docs bundle conformant
+lint: lint-paths docs-check
+
+# lint + our unit tests
+check: lint test
 
 # Our Apple team (paid Developer Program membership is required for the NetworkExtension entitlements)
 team := "CW56R63WQF"
